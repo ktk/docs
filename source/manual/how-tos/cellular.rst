@@ -12,7 +12,7 @@ Supported devices
 -----------------
 
 In general, OPNsense should support all cellular modems that are supported by the
-respective FreeBSD kernel. However, not all devices behave the same way, you might
+respective HardenedBSD kernel. However, not all devices behave the same way, you might
 have to tweak your card with specific AT commands, for example in the init string.
 
 The screenshots in this guide are for a Huawei ME909u-521 miniPCIe cellular modem.
@@ -28,14 +28,14 @@ Use websites like `FrequencyCheck <https://www.frequencycheck.com/>`_ to find th
 frequency band(s) used and get a cellular modem that supports these frequencies.
 
 You should also buy an appropriate pigtail antenna cable and LTE antenna. Note
-that LTE antennas often have different connectors than WIFI antennas, chose your
+that LTE antennas often have different connectors than Wi-Fi antennas, chose your
 equipment accordingly. Getting the right antenna has a big impact on the quality
 of your signal. For LTE, MIMO (multiple input, multiple output) antennas should
 be considered, see for example `this guide <https://www.specialistantennas.co.uk/news/lte-antenna-choices-considerations>`_.
 
 .. Note::
 
-  Make sure to connect the antenna to the cellular modem once you start 
+  Make sure to connect the antenna to the cellular modem once you start
   configuring the modem in OPNsense. There is little chance that you
   get any signal without antenna.
 
@@ -47,8 +47,8 @@ First, we need to figure out what device is accepting AT commands on your modem.
 the Huawei modem used in this example the device is ``/dev/cuaU0.0``, other modems
 might provide the AT interface on another device.
 
-On FreeBSD, ``/dev/cuauN`` devices are call-out ports that are used for modems instead
-of terminals, see section `26.2.1 <https://www.freebsd.org/doc/handbook/serial.html>`_ in the FreeBSD manual. 
+On HardenedBSD, ``/dev/cuauN`` devices are call-out ports that are used for modems instead
+of terminals, see section `26.2.1 <https://www.freebsd.org/doc/handbook/serial.html>`_ in the FreeBSD manual.
 
 The best way to locate the correct port is to send AT commands to it. This can be
 tested using the utility ``cu``:
@@ -58,7 +58,7 @@ tested using the utility ``cu``:
    cu -l /dev/cuaU0.2
    Connected
    AT (<-type that)
-   OK 
+   OK
 
 Once you see ``Connected`` type ``AT``. If you do not get an ``OK``
 back, enter ``~.`` to quit and try the next device. In this particular example, a
@@ -80,7 +80,7 @@ have been detected or you might have a pin on the SIM.
 Once the SIM card is ready, quit ``cu`` with ``~.``.
 
 .. Note::
-  
+
   To get rid of the pin, first check if it is valid with ``AT+CPIN="1234"``
   where ``1234`` is the pin of your SIM card. To get rid of the pin, enter
   ``AT+CLCK="SC",0,"1234"``. The pin should now be gone.
@@ -90,16 +90,20 @@ Once the SIM card is ready, quit ``cu`` with ``~.``.
   If you never get a ``READY`` after ``AT+CPIN?`` you might want to play with
   the different mPCIe slots on your system. In my case on a PC Engines APU
   board and a Sierra Wireless card I had to switch slots until the SIM card
-  was detected properly. The middle one did the trick for me, if someone
-  understands how or why this is happening, please add your findings to this
-  documentation. Also, APU boards have more than one SIM slot, try both slots
-  in case the first option did not work.
+  was detected properly. Please check the `PC Engines mPCIe documentation
+  <https://github.com/pcengines/apu2-documentation/blob/master/docs/APU_mPCIe_capabilities.md>`
+  and the `list of tested mPCIe modules <https://github.com/pcengines/apu2-documentation/blob/master/docs/mpcie_modules.md>, altough my card is not listed there but works for me.
+  There is more than one SIM slot in the APU and it can be switched by software
+  so make sure to test both if the first one does not work. After you switch the
+  SIM, you can send ``AT!RESET`` to the card to properly re-initialize it.
+  Give it some time to restart properly, you will need to reconnect to the
+  terminal.
 
 ----------------------------------------
 Step 2 - Configure Point to Point device
 ----------------------------------------
 
-Go to **Interfaces->Point-to-Point->Devices** and click on **Add** in the upper
+Go to :menuselection:`Interfaces --> Point-to-Point --> Devices` and click on **Add** in the upper
 right corner of the form.
 
 Fill in the form like this (Example is for Dutch Mobile 4G KPN Subscription):
@@ -129,7 +133,7 @@ Click **Save** to apply the settings.
 ---------------------------------
 Step 3 - Assign the WAN interface
 ---------------------------------
-To assign the interface go to **Interfaces->Assignments** in our case we will make
+To assign the interface go to :menuselection:`Interfaces --> Assignments` in our case we will make
 this our primary internet connection and change the WAN assignment accordingly.
 
 To do so just change the **Network port** for **WAN** to **ppp0 (/dev/cuaU0.0) - 4G Cellular Network**.
@@ -145,7 +149,8 @@ the one of you cellular connection.
 ------------------------
 Step 4 - Troubleshooting
 ------------------------
-In case it still does not work, first look at the log of the cellular device's PPP connection, to do so go to: **Interfaces->Point-to-Point->Log File**. If you are
+In case it still does not work, first look at the log of the cellular device's PPP connection, to do so go to:
+:menuselection:`Interfaces --> Point-to-Point --> Log File`. If you are
 lucky you can see what went wrong directly in the log. Unfortunately, the PPP log is
 not very informative so it might not help at all.
 
@@ -161,18 +166,25 @@ providers required factory resets (for whatever reason) to get them to work prop
   in the first step of this tutorial to make sure everything is prepared properly.
 
 .. Note::
-  
+
   Some Sierra Wireless modems still seem to need a specific init string to work
   properly. One that seems to work for multiple users and LTE cards is ``&F0E1Q0 +CMEE=2``. In any case you should first try without init string and only give it
-  a try if you could not get any connection without. You can add this in **Interfaces->Point-to-Point->Devices->Your particular device->Advanced Options->Init String**.
+  a try if you could not get any connection without. You can add this in
+  :menuselection:`Interfaces --> Point-to-Point --> Devices --> Your particular device --> Advanced Options --> Init String`.
 
 When the device seems to work properly then checkout if the interface was assigned
-an IP address, go to **Interfaces->Overview** and click on the WAN interface to
+an IP address, go to :menuselection:`Interfaces --> Overview` and click on the WAN interface to
 see the details.
 
 You should see an IP address, Gateway IP and ISP DNS server(s).
 If all is filled in, then either your firewall is blocking the traffic or the
 network connection is not working well.
+
+In case of bad or unsuccessful connections you might need to figure out what bands the card tries to
+connect to. Consult sites like `LTE HACKS <https://ltehacks.com/>`,download the AT command reference
+for your LTE modem and be ready to dive deep into technical details. 
+It is not trivial to understand what is going on but you will find a lot like-minded people that share
+their experience with LTE modems.
 
 In case you were not successful, you might have to check manually what is going
 on. Read the `Troubleshooting PPP Connections <https://www.freebsd.org/doc/handbook/ppp-troubleshoot.html>`_ section in the FreeBSD manual for more information and
